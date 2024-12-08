@@ -1,0 +1,80 @@
+name: Build/Release Electron App
+
+on:
+  push:
+    tags:
+      - v*.*.*
+
+jobs:
+  release:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v3
+
+      - name: Set up SSH for private repos
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+
+      - name: Remove old GitHub host key
+        run: |
+          ssh-keygen -R github.com
+
+      - name: Add GitHub to known_hosts
+        run: |
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Install Snapcraft via .deb package
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt update
+          sudo apt install -y snapd
+          sudo systemctl enable --now snapd.socket
+          sudo snap install snapcraft --classic
+
+      - name: Build Linux App
+        if: matrix.os == 'ubuntu-latest'
+        continue-on-error: true
+        run: npm run build:linux
+
+      - name: Build Mac App
+        if: matrix.os == 'macos-latest'
+        continue-on-error: true
+        run: npm run build:mac
+
+      - name: Build Windows App
+        if: matrix.os == 'windows-latest'
+        continue-on-error: true
+        run: npm run build:win
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files: |
+            dist/*.exe
+            dist/*.zip
+            dist/*.dmg
+            dist/*.AppImage
+            dist/*.snap
+            dist/*.deb
+            dist/*.rpm
+            dist/*.tar.gz
+            dist/*.yml
+            dist/*.blockmap
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}

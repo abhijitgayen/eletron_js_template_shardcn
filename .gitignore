@@ -1,0 +1,11 @@
+node_modules
+dist
+out
+.DS_Store
+*.log*
+tokens.json
+app_data
+
+# whatsapp related
+whatsapp_token
+.wwebjs_cache
